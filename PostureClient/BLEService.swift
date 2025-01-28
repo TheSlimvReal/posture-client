@@ -41,9 +41,7 @@ struct PostureColor {
     private var resistanceCharacteristic = CBUUID(string: "2A58")
     
     private let timeframe = 5
-    private var leftDefault = 1200
-    private var middleDefault = 1200
-    private var rightDefault = 1200
+    var defaultValues = SensorData(left: 1500, middle: 1500, right: 1500)
     
     func discoverPeripherals() {
         if self.central == nil {
@@ -135,7 +133,7 @@ struct PostureColor {
         do {
             let sensorData = try decoder.decode(SensorData.self, from: resString.data(using: .utf8)!)
             print("res \(sensorData)")
-            self.receivedData.append(sensorData)
+                self.receivedData.append(sensorData)
             self.getPostureData()
         } catch {
             print("Failed decoding data \(decoder) Error: \(error)")
@@ -157,22 +155,22 @@ struct PostureColor {
         var middleGreater = 0
         var middleSmaller = 0
         timeFrameData.forEach { d in
-            if d.left > self.leftDefault + threshold {
+            if d.left > self.defaultValues.left + threshold {
                 leftGreater += 1
             }
-            if d.middle > self.middleDefault + threshold {
+            if d.middle > self.defaultValues.middle + threshold {
                 middleGreater += 1
             }
-            if d.right > self.rightDefault + threshold {
+            if d.right > self.defaultValues.right + threshold {
                 rightGreater += 1
             }
-            if d.left < self.leftDefault - threshold/2 {
+            if d.left < self.defaultValues.left - threshold/2 {
                 leftSmaller += 1
             }
-            if d.middle < self.middleDefault - threshold/2 {
+            if d.middle < self.defaultValues.middle - threshold/2 {
                 middleSmaller += 1
             }
-            if d.right < self.rightDefault - threshold/2 {
+            if d.right < self.defaultValues.right - threshold/2 {
                 rightSmaller += 1
             }
         }
@@ -187,10 +185,10 @@ struct PostureColor {
     
     func setDefault() {
         let timeFrameData = self.receivedData.suffix(self.timeframe)
-        self.leftDefault = timeFrameData.reduce(0, { res, next in res + next.left }) / self.timeframe
-        self.rightDefault = timeFrameData.reduce(0, { res, next in res + next.right }) / self.timeframe
-        self.middleDefault = timeFrameData.reduce(0, { res, next in res + next.middle }) / self.timeframe
-        print("defaults left: \(self.leftDefault) right: \(self.rightDefault) middle \(self.middleDefault)")
+        self.defaultValues.left = timeFrameData.reduce(0, { res, next in res + next.left }) / self.timeframe
+        self.defaultValues.right = timeFrameData.reduce(0, { res, next in res + next.right }) / self.timeframe
+        self.defaultValues.middle = timeFrameData.reduce(0, { res, next in res + next.middle }) / self.timeframe
+        print("defaults \(self.defaultValues)")
     }
     
     func setPostureColor(postureData: PostureData) {

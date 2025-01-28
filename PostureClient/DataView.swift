@@ -11,7 +11,8 @@ struct DataView: View {
     let service: BLEService
     let peripheral: BLEPeripheral
     let radius: CGFloat = 150
-    let centerPoint = CGPoint(x: 200, y: 200)
+    let centerPoint = CGPoint(x: 200, y: 150)
+    @State var showData = false
     var body: some View {
         VStack {
             ZStack {
@@ -61,7 +62,7 @@ struct DataView: View {
                     Path { path in
                         path.move(to: self.centerPoint)
                         path.addArc(
-                            center: CGPoint(x: 200, y:200),
+                            center: self.centerPoint,
                             radius: self.radius,
                             startAngle: Angle(degrees: 135),
                             endAngle: Angle(degrees: 225),
@@ -71,7 +72,7 @@ struct DataView: View {
                     Path { path in
                         path.move(to: self.centerPoint)
                         path.addArc(
-                            center: CGPoint(x: 200, y:200),
+                            center: self.centerPoint,
                             radius: self.radius,
                             startAngle: Angle(degrees: 225),
                             endAngle: Angle(degrees: 315),
@@ -79,7 +80,13 @@ struct DataView: View {
                         )
                     }.fill(self.service.postureColor.forward)
                 }
-               
+                if self.showData {
+                    ChartView(
+                        data: self.service.receivedData.suffix(11).reversed(),
+                        defaultValues: self.service.defaultValues)
+                    .padding()
+                }
+                Toggle("Show detailed data", isOn: $showData).padding()
             } else {
                 Text("Connecting...")
             }
