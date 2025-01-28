@@ -6,6 +6,7 @@
 //
 import CoreBluetooth
 import Foundation
+import SwiftUI
 
 struct SensorData: Codable, Hashable {
     var left: Int
@@ -20,17 +21,26 @@ struct PostureData: Codable {
     var backward: Bool = false
 }
 
+struct PostureColor {
+    var left: Color = .green
+    var right: Color = .green
+    var forward: Color = .green
+    var backward: Color = .green
+}
+
 @Observable class BLEService: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var isConnected = false;
     var discoveredPeripherals: [CBPeripheral] = []
     var receivedData: [SensorData] = []
     var postureData: [PostureData] = []
+    var postureColor = PostureColor()
         
     private var central: CBCentralManager?
     private var peripheral: CBPeripheral?
     private var dataService = CBUUID(string: "180A")
     private var resistanceCharacteristic = CBUUID(string: "2A58")
     
+    private let timeframe = 5
     private var leftDefault = 1200
     private var middleDefault = 1200
     private var rightDefault = 1200
@@ -77,12 +87,14 @@ struct PostureData: Codable {
     }
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        print("connected")
         self.isConnected = true
         self.peripheral?.discoverServices([self.dataService])
         self.peripheral?.delegate = self
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        print("discovered")
         if let services = peripheral.services{
             for service in services{
                 peripheral.discoverCharacteristics(nil, for: service)
@@ -92,7 +104,8 @@ struct PostureData: Codable {
     
     var characteristicData: [CBCharacteristic] = []
 
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService) {
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        print("discovered characteristic")
         for charac in service.characteristics!{
             print("characteristic \(charac.uuid)")
             characteristicData.append(charac)
@@ -103,7 +116,7 @@ struct PostureData: Codable {
         }
     }
     
-    func peripheral(didUpdateValueFor characteristic: CBCharacteristic) {
+    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         guard let data = characteristic.value else {
             return
         }
@@ -130,47 +143,63 @@ struct PostureData: Codable {
     }
     
     func getPostureData() {
-        let timeFrame = 5
         let threshold = 200
         let accuracy = 3
         
         var postureMeassure = PostureData()
-        if self.receivedData.count > timeFrame {
-            let timeFrameData = self.receivedData.suffix(5)
-            print("time frame \(timeFrameData)")
-            var leftGreater = 0
-            var leftSmaller = 0
-            var rightGreater = 0
-            var rightSmaller = 0
-            var middleGreater = 0
-            var middleSmaller = 0
-            timeFrameData.forEach { d in
-                if d.left > self.leftDefault + threshold {
-                    leftGreater += 1
-                }
-                if d.middle > self.middleDefault + threshold {
-                    middleGreater += 1
-                }
-                if d.right > self.rightDefault + threshold {
-                    rightGreater += 1
-                }
-                if d.left < self.leftDefault - threshold/2 {
-                    leftSmaller += 1
-                }
-                if d.middle < self.middleDefault - threshold/2 {
-                    middleSmaller += 1
-                }
-                if d.right < self.rightDefault - threshold/2 {
-                    rightSmaller += 1
-                }
+        let timeFrameData = self.receivedData.suffix(self.timeframe)
+        print("time frame \(timeFrameData)")
+        // currently counting #of times higher than threshold, alternative check threshold on average values
+        var leftGreater = 0
+        var leftSmaller = 0
+        var rightGreater = 0
+        var rightSmaller = 0
+        var middleGreater = 0
+        var middleSmaller = 0
+        timeFrameData.forEach { d in
+            if d.left > self.leftDefault + threshold {
+                leftGreater += 1
             }
-            postureMeassure.left = leftGreater >= accuracy && rightSmaller >= accuracy
-            postureMeassure.right = rightGreater >= accuracy && leftSmaller >= accuracy
-            postureMeassure.backward = middleSmaller > accuracy
-            postureMeassure.forward = middleGreater > accuracy
-            print("measured \(postureMeassure)")
+            if d.middle > self.middleDefault + threshold {
+                middleGreater += 1
+            }
+            if d.right > self.rightDefault + threshold {
+                rightGreater += 1
+            }
+            if d.left < self.leftDefault - threshold/2 {
+                leftSmaller += 1
+            }
+            if d.middle < self.middleDefault - threshold/2 {
+                middleSmaller += 1
+            }
+            if d.right < self.rightDefault - threshold/2 {
+                rightSmaller += 1
+            }
         }
+        postureMeassure.left = leftGreater >= accuracy && rightSmaller >= accuracy
+        postureMeassure.right = rightGreater >= accuracy && leftSmaller >= accuracy
+        postureMeassure.backward = middleSmaller > accuracy
+        postureMeassure.forward = middleGreater > accuracy
+        print("measured \(postureMeassure)")
         self.postureData.append(postureMeassure)
+        self.setPostureColor(postureData: postureMeassure)
+    }
+    
+    func setDefault() {
+        let timeFrameData = self.receivedData.suffix(self.timeframe)
+        self.leftDefault = timeFrameData.reduce(0, { res, next in res + next.left }) / self.timeframe
+        self.rightDefault = timeFrameData.reduce(0, { res, next in res + next.right }) / self.timeframe
+        self.middleDefault = timeFrameData.reduce(0, { res, next in res + next.middle }) / self.timeframe
+        print("defaults left: \(self.leftDefault) right: \(self.rightDefault) middle \(self.middleDefault)")
+    }
+    
+    func setPostureColor(postureData: PostureData) {
+        withAnimation {
+            self.postureColor.backward = postureData.backward ? .red : .green
+            self.postureColor.forward = postureData.forward ? .red : .green
+            self.postureColor.left = postureData.left ? .red : .green
+            self.postureColor.right = postureData.right ? .red : .green
+        }
     }
 }
 
