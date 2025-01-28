@@ -13,15 +13,27 @@ struct SensorData: Codable, Hashable {
     var right: Int
 }
 
+struct PostureData: Codable {
+    var left: Bool = false
+    var right: Bool = false
+    var forward: Bool = false
+    var backward: Bool = false
+}
+
 @Observable class BLEService: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var isConnected = false;
     var discoveredPeripherals: [CBPeripheral] = []
     var receivedData: [SensorData] = []
+    var postureData: [PostureData] = []
         
     private var central: CBCentralManager?
     private var peripheral: CBPeripheral?
     private var dataService = CBUUID(string: "180A")
     private var resistanceCharacteristic = CBUUID(string: "2A58")
+    
+    private var leftDefault = 1200
+    private var middleDefault = 1200
+    private var rightDefault = 1200
     
     func discoverPeripherals() {
         if self.central == nil {
@@ -46,6 +58,7 @@ struct SensorData: Codable, Hashable {
     func disconnect(peripheral: BLEPeripheral) {
         self.isConnected = false;
         self.receivedData = []
+        self.postureData = []
         self.central!.cancelPeripheralConnection(peripheral.getPeripheral())
     }
     
@@ -110,9 +123,54 @@ struct SensorData: Codable, Hashable {
             let sensorData = try decoder.decode(SensorData.self, from: resString.data(using: .utf8)!)
             print("res \(sensorData)")
             self.receivedData.append(sensorData)
+            self.getPostureData()
         } catch {
             print("Failed decoding data \(decoder) Error: \(error)")
         }
+    }
+    
+    func getPostureData() {
+        let timeFrame = 5
+        let threshold = 200
+        let accuracy = 3
+        
+        var postureMeassure = PostureData()
+        if self.receivedData.count > timeFrame {
+            let timeFrameData = self.receivedData.suffix(5)
+            print("time frame \(timeFrameData)")
+            var leftGreater = 0
+            var leftSmaller = 0
+            var rightGreater = 0
+            var rightSmaller = 0
+            var middleGreater = 0
+            var middleSmaller = 0
+            timeFrameData.forEach { d in
+                if d.left > self.leftDefault + threshold {
+                    leftGreater += 1
+                }
+                if d.middle > self.middleDefault + threshold {
+                    middleGreater += 1
+                }
+                if d.right > self.rightDefault + threshold {
+                    rightGreater += 1
+                }
+                if d.left < self.leftDefault - threshold/2 {
+                    leftSmaller += 1
+                }
+                if d.middle < self.middleDefault - threshold/2 {
+                    middleSmaller += 1
+                }
+                if d.right < self.rightDefault - threshold/2 {
+                    rightSmaller += 1
+                }
+            }
+            postureMeassure.left = leftGreater >= accuracy && rightSmaller >= accuracy
+            postureMeassure.right = rightGreater >= accuracy && leftSmaller >= accuracy
+            postureMeassure.backward = middleSmaller > accuracy
+            postureMeassure.forward = middleGreater > accuracy
+            print("measured \(postureMeassure)")
+        }
+        self.postureData.append(postureMeassure)
     }
 }
 
