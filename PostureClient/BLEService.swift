@@ -7,11 +7,17 @@
 import CoreBluetooth
 import Foundation
 
+struct SensorData: Codable, Hashable {
+    var left: Int
+    var middle: Int
+    var right: Int
+}
+
 @Observable class BLEService: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var isConnected = false;
     var discoveredPeripherals: [CBPeripheral] = []
-    var receivedData: [String] = []
-    
+    var receivedData: [SensorData] = []
+        
     private var central: CBCentralManager?
     private var peripheral: CBPeripheral?
     private var dataService = CBUUID(string: "180A")
@@ -30,17 +36,17 @@ import Foundation
         self.central?.stopScan()
     }
     
-    func connectPeripheral(peripheral: CBPeripheral) {
+    func connectPeripheral(peripheral: BLEPeripheral) {
         self.central!.stopScan()
-        self.central!.connect(peripheral, options: nil)
-        self.peripheral = peripheral
+        self.central!.connect(peripheral.getPeripheral(), options: nil)
+        self.peripheral = peripheral.getPeripheral()
         print("EXPECTED_PERIPHERALS \(self.peripheral!)")
     }
     
-    func disconnect(peripheral: CBPeripheral) {
+    func disconnect(peripheral: BLEPeripheral) {
         self.isConnected = false;
         self.receivedData = []
-        self.central!.cancelPeripheralConnection(peripheral)
+        self.central!.cancelPeripheralConnection(peripheral.getPeripheral())
     }
     
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
@@ -73,7 +79,7 @@ import Foundation
     
     var characteristicData: [CBCharacteristic] = []
 
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService) {
         for charac in service.characteristics!{
             print("characteristic \(charac.uuid)")
             characteristicData.append(charac)
@@ -84,19 +90,54 @@ import Foundation
         }
     }
     
-    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        
+    func peripheral(didUpdateValueFor characteristic: CBCharacteristic) {
         guard let data = characteristic.value else {
             return
         }
         
-        
-        if characteristic.uuid == self.resistanceCharacteristic{
-            var resString = ""
-            data.forEach { resString += String(UnicodeScalar($0)) }
-            print("res \(resString)")
-            self.receivedData.append(resString)
+        print("peripheral \(characteristic.value!)")
+
+        if characteristic.uuid == self.resistanceCharacteristic {
+            self.parseData(data: data)
         }
+    }
     
+    func parseData(data: Data) {
+        var resString = ""
+        data.forEach { resString += String(UnicodeScalar($0)) }
+        let decoder = JSONDecoder()
+        do {
+            let sensorData = try decoder.decode(SensorData.self, from: resString.data(using: .utf8)!)
+            print("res \(sensorData)")
+            self.receivedData.append(sensorData)
+        } catch {
+            print("Failed decoding data \(decoder) Error: \(error)")
+        }
+    }
+}
+
+class BLEPeripheral: NSObject {
+    private var peripheral: CBPeripheral?
+    
+    var name: String {
+        get {
+            if self.peripheral === nil {
+                return "Mocked"
+            } else {
+                return self.peripheral!.name ?? "unnamed"
+            }
+        }
+    }
+    
+    init(peripheral: CBPeripheral? = nil) {
+        self.peripheral = peripheral
+    }
+    
+    func getPeripheral() -> CBPeripheral {
+        return self.peripheral!
+    }
+    
+    func setPeripheral(peripheral: CBPeripheral) {
+        self.peripheral = peripheral
     }
 }

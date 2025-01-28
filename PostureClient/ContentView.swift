@@ -18,7 +18,7 @@ struct ContentView: View {
                 } else {
                     List(self.bleService.discoveredPeripherals, id: \.identifier) { peripheral in
                         NavigationLink {
-                            DataView(service: self.bleService, peripheral: peripheral)
+                            DataView(service: self.bleService, peripheral: BLEPeripheral(peripheral: peripheral))
                         } label: {
                             Text("\(peripheral.name ?? "unnamed") - \(peripheral.identifier)")
                         }
