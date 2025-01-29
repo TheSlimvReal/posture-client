@@ -189,15 +189,16 @@ struct PostureColor {
     }
     
     func analyzeWithAvg(timeFrameData: ArraySlice<SensorData>) -> PostureData {
-        let threshold = 200
+        let thresholdLR = 150
+        let thresholdF = 50
         var postureMeassure = PostureData()
         let avgLeft = timeFrameData.reduce(0, { res, next in res + next.left }) / self.timeframe
         let avgRight = timeFrameData.reduce(0, { res, next in res + next.right }) / self.timeframe
         let avgMiddle = timeFrameData.reduce(0, { res, next in res + next.middle }) / self.timeframe
-        postureMeassure.forward = avgMiddle > self.defaultValues.middle + threshold
-        postureMeassure.backward = avgMiddle < self.defaultValues.middle - threshold / 2
-        postureMeassure.left = (avgLeft > self.defaultValues.left + threshold) && (avgRight < self.defaultValues.right - threshold / 2)
-        postureMeassure.right = (avgRight > self.defaultValues.right + threshold) && (avgLeft < self.defaultValues.left - threshold / 2)
+        postureMeassure.forward = avgMiddle > self.defaultValues.middle + thresholdF
+        postureMeassure.backward = avgMiddle < self.defaultValues.middle - thresholdF / 2
+        postureMeassure.right = (avgLeft > self.defaultValues.left + thresholdLR)
+        postureMeassure.left = (avgRight > self.defaultValues.right + thresholdLR)
         return postureMeassure
     }
     

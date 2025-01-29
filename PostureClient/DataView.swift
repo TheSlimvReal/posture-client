@@ -79,14 +79,16 @@ struct DataView: View {
                             clockwise: false
                         )
                     }.fill(self.service.postureColor.forward)
-                }
+                }.frame(maxHeight: 300)
+                Toggle("Show detailed data", isOn: $showData).padding()
                 if self.showData {
                     ChartView(
                         data: self.service.receivedData.suffix(11).reversed(),
                         defaultValues: self.service.defaultValues)
                     .padding()
+                    .frame(maxHeight: 220)
                 }
-                Toggle("Show detailed data", isOn: $showData).padding()
+                Spacer()
             } else {
                 Text("Connecting...")
             }
@@ -98,7 +100,6 @@ struct DataView: View {
             .onDisappear {
                 self.service.disconnect(peripheral: self.peripheral)
         }
-
     }
 }
 
