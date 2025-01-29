@@ -16,29 +16,20 @@ struct ChartView: View {
             ForEach(Array(zip(self.data.indices, self.data)), id: \.1.left) { index, item in
                 LineMark(
                     x: .value("Time", -index),
-                    y: .value("Value", item.left),
+                    y: .value("Value", item.left - self.defaultValues.left),
                     series: .value("Series", "left")
                 ).foregroundStyle(by: .value("Series", "left"))
                 LineMark(
                     x: .value("Time", -index),
-                    y: .value("Value", item.middle),
+                    y: .value("Value", item.middle - self.defaultValues.middle),
                     series: .value("Series", "middle")
                 ).foregroundStyle(by: .value("Series", "middle"))
                 LineMark(
                     x: .value("Time", -index),
-                    y: .value("Value", item.right),
+                    y: .value("Value", item.right - self.defaultValues.right),
                     series: .value("Series", "right")
                 ).foregroundStyle(by: .value("Series", "right"))
             }
-            RuleMark(y: .value("left default", defaultValues.left))
-                .foregroundStyle(by: .value("Series", "left"))
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [10, 4]))
-            RuleMark(y: .value("middle default", defaultValues.middle))
-                .foregroundStyle(by: .value("Series", "middle"))
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [10, 4]))
-            RuleMark(y: .value("right default", defaultValues.right))
-                .foregroundStyle(by: .value("Series", "right"))
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [10, 4]))
         }
         .chartXScale(domain: [-10, 0])
         .chartXAxis {
@@ -55,7 +46,6 @@ struct ChartView: View {
                 }
             }
         }
-        .chartYScale(domain: [1000, 3000])
         .chartForegroundStyleScale([
             "left": .yellow, "middle": .green, "right": .red
         ])

@@ -133,7 +133,7 @@ struct PostureColor {
         do {
             let sensorData = try decoder.decode(SensorData.self, from: resString.data(using: .utf8)!)
             print("res \(sensorData)")
-                self.receivedData.append(sensorData)
+            self.receivedData.append(sensorData)
             self.getPostureData()
         } catch {
             print("Failed decoding data \(decoder) Error: \(error)")
@@ -141,13 +141,20 @@ struct PostureColor {
     }
     
     func getPostureData() {
+        let timeFrameData = self.receivedData.suffix(self.timeframe)
+        print("time frame \(timeFrameData)")
+//        let postureMeassure = self.analyzeWithThreshold(timeFrameData: timeFrameData)
+        let postureMeassure = self.analyzeWithAvg(timeFrameData: timeFrameData)
+        print("measured \(postureMeassure)")
+        self.postureData.append(postureMeassure)
+        self.setPostureColor(postureData: postureMeassure)
+    }
+    
+    func analyzeWithThreshold(timeFrameData: ArraySlice<SensorData>) -> PostureData {
         let threshold = 200
         let accuracy = 3
         
         var postureMeassure = PostureData()
-        let timeFrameData = self.receivedData.suffix(self.timeframe)
-        print("time frame \(timeFrameData)")
-        // currently counting #of times higher than threshold, alternative check threshold on average values
         var leftGreater = 0
         var leftSmaller = 0
         var rightGreater = 0
@@ -178,9 +185,20 @@ struct PostureColor {
         postureMeassure.right = rightGreater >= accuracy && leftSmaller >= accuracy
         postureMeassure.backward = middleSmaller > accuracy
         postureMeassure.forward = middleGreater > accuracy
-        print("measured \(postureMeassure)")
-        self.postureData.append(postureMeassure)
-        self.setPostureColor(postureData: postureMeassure)
+        return postureMeassure
+    }
+    
+    func analyzeWithAvg(timeFrameData: ArraySlice<SensorData>) -> PostureData {
+        let threshold = 200
+        var postureMeassure = PostureData()
+        let avgLeft = timeFrameData.reduce(0, { res, next in res + next.left }) / self.timeframe
+        let avgRight = timeFrameData.reduce(0, { res, next in res + next.right }) / self.timeframe
+        let avgMiddle = timeFrameData.reduce(0, { res, next in res + next.middle }) / self.timeframe
+        postureMeassure.forward = avgMiddle > self.defaultValues.middle + threshold
+        postureMeassure.backward = avgMiddle < self.defaultValues.middle - threshold / 2
+        postureMeassure.left = (avgLeft > self.defaultValues.left + threshold) && (avgRight < self.defaultValues.right - threshold / 2)
+        postureMeassure.right = (avgRight > self.defaultValues.right + threshold) && (avgLeft < self.defaultValues.left - threshold / 2)
+        return postureMeassure
     }
     
     func setDefault() {
